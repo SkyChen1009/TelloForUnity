@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using System.Runtime.InteropServices;
 using System.Collections;
+using UnityEngine.UI;
 
 public class TelloVideoTexture : MonoBehaviour {
 
@@ -50,8 +51,10 @@ public class TelloVideoTexture : MonoBehaviour {
 	private const int Height = 720;
 	private const TextureFormat TextureFormat_ = TextureFormat.RGBA32;
 	private Texture2D texture;
+    public Texture2D VideoTexture { get { return texture; } }
 
-	IEnumerator Start()
+
+    IEnumerator Start()
 	{
 #if UNITY_WEBGL && !UNITY_EDITOR
 		RegisterPlugin();
@@ -87,7 +90,8 @@ public class TelloVideoTexture : MonoBehaviour {
 		}
 	}
 
-	public void PutVideoData(byte[] data)
+
+    public void PutVideoData(byte[] data)
 	{
 		IntPtr unmanagedData = Marshal.AllocHGlobal(data.Length);
 		Marshal.Copy(data, 0, unmanagedData, data.Length);
