@@ -6,6 +6,7 @@ using TelloLib;
 
 public class HandDetector : MonoBehaviour
 {
+    /*
     public TelloController telloController;
     public Handedness handedness;
     public float palmDirectionThreshold = 0.8f;
@@ -362,5 +363,5 @@ public class HandDetector : MonoBehaviour
         }
 
         return 0;
-    }
+    }*/
 }

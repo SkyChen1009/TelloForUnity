@@ -1,9 +1,0 @@
-LIBRARY
-
-EXPORTS
-	UnityPluginLoad
-	UnityPluginUnload
-	UnityPluginEnable
-	UnityPluginDisable
-	SetTextureFromUnity
-	GetRenderEventFunc

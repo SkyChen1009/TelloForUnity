@@ -1,19 +1,40 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using UnityEngine;
 using TelloLib;
 using UnityEngine.UI;
+using TMPro;
 
 public class TelloController : SingletonMonoBehaviour<TelloController>
 {
     private static bool isLoaded = false;
 
-    public TelloVideoTexture telloVideoTexture;
+    private TelloVideoTexture telloVideoTexture;
+
     public float lx = 0f;
     public float ly = 0f;
     public float rx = 0f;
     public float ry = 0f;
 
     public DronePositionTracker positionTracker;
+
+    public RawImage TelloRawImage;
+    public RawImage WebCamRawImage;
+    private bool isSwapped = false;
+    private float transitionSpeed = 10f;
+    private Vector2 TelloRawImageStartPos;
+    private Vector2 WebCamRawImageStartPos;
+    private Vector2 TelloRawImageStartScale;
+    private Vector2 WebCamRawImageStartScale;
+
+    //flying feedback
+    public string pose_string;
+    public string distance_string;
+    public string altitude_string;
+    public string battery_string;
+    public TMP_Text fly_distance;
+    public TMP_Text fly_altitude;
+    public TMP_Text posture;
+    public TMP_Text batteryStatus;
 
     //// UI representing movement
     //public Image actionImage;
@@ -96,9 +117,10 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         base.Awake();
 
         Tello.onConnection += Tello_onConnection;
+        //Tello.onUpdate += Tello_onUpdate;
         Tello.onVideoData += Tello_onVideoData;
 
-        // ß‰®Ï Slate ™´•Û©M ContentQuad §∏•Û
+        // ÊâæÂà∞ Slate Áâ©‰ª∂Âíå ContentQuad ÂÖÉ‰ª∂
         //Slate = GameObject.Find("Slate");
         //SlateImage = Slate.GetComponent<UnityEngine.UI.Image>();
 
@@ -108,25 +130,21 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         //positionTracker = new DronePositionTracker();
     }
 
-    //private void OnEnable()
-    //{
-    //    if (telloVideoTexture == null)
-    //        telloVideoTexture = FindObjectOfType<TelloVideoTexture>();
-    //}
-
-    //public GameObject telloVideoPrefab;
-    //public GameObject telloVideoInstance;
+    private void OnEnable()
+   {
+        if (telloVideoTexture == null)
+           telloVideoTexture = FindObjectOfType<TelloVideoTexture>();
+    }
 
     private void Start()
     {
-        //---------------------------------------------
-        //if (telloVideoTexture == null)
-        //    telloVideoTexture = FindObjectOfType<TelloVideoTexture>();
+        // ‰øùÂ≠òÂàùÂßãÂ§ßÂ∞èÂíå‰ΩçÁΩÆ
+        TelloRawImageStartPos = TelloRawImage.rectTransform.anchoredPosition;
+        WebCamRawImageStartPos = WebCamRawImage.rectTransform.anchoredPosition;
+        TelloRawImageStartScale = TelloRawImage.rectTransform.localScale;
+        WebCamRawImageStartScale = WebCamRawImage.rectTransform.localScale;
 
-        //if (telloVideoPrefab != null)
-        //{
-        //    telloVideoInstance = Instantiate(telloVideoPrefab);
-        //}
+        isSwapped = false;
 
         Tello.startConnecting();
     }
@@ -136,7 +154,7 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         Tello.stopConnecting();
     }
 
-    ////Sprites ©µ™¯≈„•‹Æ…∂°
+    ////Sprites Âª∂Èï∑È°ØÁ§∫ÊôÇÈñì
     //void ResetSpriteAfterDelay()
     //{
     //    if (resetSpriteCoroutine != null)
@@ -146,13 +164,13 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
     //    resetSpriteCoroutine = StartCoroutine(ResetSpriteCoroutine());
     //}
 
-    ////Sprites ®C≠”∞ ß@≈„•‹®‚¨Ì´·§¡¶^
+    ////Sprites ÊØèÂÄãÂãï‰ΩúÈ°ØÁ§∫ÂÖ©ÁßíÂæåÂàáÂõû
     //IEnumerator ResetSpriteCoroutine()
     //{
     //    yield return new WaitForSeconds(3f);
     //    actionImage.sprite = stillSprite;
     //}
-    public void Takeoff() //∞_≠∏
+    public void Takeoff() //Ëµ∑È£õ
     {
         Debug.Log("Take off");
         Tello.takeOff();
@@ -160,7 +178,7 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         //ResetSpriteAfterDelay();
     }
 
-    public void Land() //≠∞∏®
+    public void Land() //ÈôçËêΩ
     {
         Debug.Log("Land");
         Tello.land();
@@ -168,17 +186,14 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         //ResetSpriteAfterDelay();
     }
 
-    //public Text droneDistanceText;
-    //public Text droneAltitudeText;
-
     // Update is called once per frame
     void Update()
     {
-        /*
+        
         if (Input.GetKeyDown(KeyCode.T)) {
-         Tello.takeOff();
+            Tello.takeOff();
         } else if (Input.GetKeyDown(KeyCode.L)) {
-         Tello.land();
+            Tello.land();
         }
 
         float lx = 0f;
@@ -187,37 +202,117 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         float ry = 0f;
 
         if (Input.GetKey(KeyCode.UpArrow)) {
-         ry = 1;
+            pose_string = "Posture : Go up";
+            ry = 1;
         }
         if (Input.GetKey(KeyCode.DownArrow)) {
-         ry = -1;
+            pose_string = "Posture : Go down";
+            ry = -1;
         }
         if (Input.GetKey(KeyCode.RightArrow)) {
-         rx = 1;
+            pose_string = "Posture : Rotate right";
+            rx = 1;
         }
         if (Input.GetKey(KeyCode.LeftArrow)) {
-         rx = -1;
+            pose_string = "Posture : Rotate left";
+            rx = -1;
         }
         if (Input.GetKey(KeyCode.W)) {
-         ly = 1;
+            pose_string = "Posture : Go forward";
+            ly = 1;
         }
         if (Input.GetKey(KeyCode.S)) {
-         ly = -1;
+            pose_string = "Posture : Go backward";
+            ly = -1;
         }
         if (Input.GetKey(KeyCode.D)) {
-         lx = 1;
+            pose_string = "Posture : Go right";
+            lx = 1;
         }
         if (Input.GetKey(KeyCode.A)) {
-         lx = -1;
-        }*/
-        Debug.Log($"lx:{lx}, ly: {ly}, rx: {rx}, ry: {ry}");
-        //SetAxisValues(lx, ly, rx, ry);
+            pose_string = "Posture : Go left";
+            lx = -1;
+        }
+        //Debug.Log($"lx:{lx}, ly: {ly}, rx: {rx}, ry: {ry}");
+        SetAxisValues(lx, ly, rx, ry);
+
+        if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift))
+        {
+            isSwapped = !isSwapped;
+        }
+
+        // Âπ≥ÊªëÂú∞‰∫§ÊèõÂ§ßÂ∞è„ÄÅ‰ΩçÁΩÆÂíåÊóãËΩâ
+        if (isSwapped)
+        {
+            // ‰ΩçÁΩÆ
+            TelloRawImage.rectTransform.anchoredPosition = Vector2.Lerp(
+                TelloRawImage.rectTransform.anchoredPosition,
+                WebCamRawImageStartPos,
+                Time.deltaTime * transitionSpeed
+            );
+            WebCamRawImage.rectTransform.anchoredPosition = Vector2.Lerp(
+                WebCamRawImage.rectTransform.anchoredPosition,
+                TelloRawImageStartPos,
+                Time.deltaTime * transitionSpeed
+            );
+
+            TelloRawImage.rectTransform.localScale = Vector2.Lerp(TelloRawImage.rectTransform.localScale, WebCamRawImageStartScale, Time.deltaTime * transitionSpeed);
+            WebCamRawImage.rectTransform.localScale = Vector2.Lerp(WebCamRawImage.rectTransform.localScale, TelloRawImageStartScale, Time.deltaTime * transitionSpeed);
+        }
+        else
+        {
+            // ‰ΩçÁΩÆ
+            TelloRawImage.rectTransform.anchoredPosition = Vector2.Lerp(
+                TelloRawImage.rectTransform.anchoredPosition,
+                TelloRawImageStartPos,
+                Time.deltaTime * transitionSpeed
+            );
+            WebCamRawImage.rectTransform.anchoredPosition = Vector2.Lerp(
+                WebCamRawImage.rectTransform.anchoredPosition,
+                WebCamRawImageStartPos,
+                Time.deltaTime * transitionSpeed
+            );
+
+            TelloRawImage.rectTransform.localScale = Vector2.Lerp(TelloRawImage.rectTransform.localScale, TelloRawImageStartScale, Time.deltaTime * transitionSpeed);
+            WebCamRawImage.rectTransform.localScale = Vector2.Lerp(WebCamRawImage.rectTransform.localScale, WebCamRawImageStartScale, Time.deltaTime * transitionSpeed);
+        }
+
+        // Á¢∫‰øùÁ∏ÆÊîæÂÄº‰∏çÁÇ∫Èõ∂ÊàñË≤†ÂÄº
+        TelloRawImage.rectTransform.localScale = ClampScale(TelloRawImage.rectTransform.localScale);
+        WebCamRawImage.rectTransform.localScale = ClampScale(WebCamRawImage.rectTransform.localScale);
+
+        WebCamRawImage.color = new Color(WebCamRawImage.color.r, WebCamRawImage.color.g, WebCamRawImage.color.b, 1f); // Á¢∫‰øù Alpha ÂÄºÁÇ∫ 1
+        TelloRawImage.color = new Color(TelloRawImage.color.r, TelloRawImage.color.g, TelloRawImage.color.b, 1f); // Á¢∫‰øù Alpha ÂÄºÁÇ∫ 1
+
+        // Âº∫Âà∂Âà∑Êñ∞ CanvasÔºåÊ∂àÈô§ÊÆãÂΩ±ÂíåÁ©∫ÁôΩÈóÆÈ¢ò
+        //Canvas.ForceUpdateCanvases();
+
+        posture.text = pose_string;
+        fly_distance.text = distance_string;
+        // Â∞áÁ¥ØÂä†ÁöÑrx, ryÊï∏ÊìöÂÇ≥Âà∞fly_distanceÊñáÊú¨
+        distance_string = $"Distance : X: {Tello.state.posX*1000}, Y: {Tello.state.posY*1000}";
+
+        //ÂõûÂÇ≥È´òÂ∫¶Âà∞Altitude
+        fly_altitude.text = altitude_string;
+        altitude_string = $"Altitude : {Tello.state.height}";
+
+        //ÂõûÂÇ≥ÈõªÈáèÂà∞battery
+        batteryStatus.text = battery_string;
+        battery_string = $"Battery : {Tello.state.batteryPercentage}";
+    }
+
+    Vector3 ClampScale(Vector3 scale)
+    {
+        // Á¢∫‰øùÁ∏ÆÊîæÂÄºÊúÄÂ∞èÁÇ∫ 0.1Ôºå‰ª•Èò≤Ê≠¢ÂúñÂÉèÊ∂àÂ§±
+        scale.x = Mathf.Max(scale.x, 0.1f);
+        scale.y = Mathf.Max(scale.y, 0.1f);
+        return scale;
     }
 
     //private float droneDistance = 0f;
     //private float droneAltitude = 0f;
 
-    public void OnMoveUpPress() //©π§W
+    /*public void OnMoveUpPress() //ÂæÄ‰∏ä
     {
         Debug.Log("up");
         ly = 0.5f;
@@ -234,7 +329,7 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         //actionImage.sprite = stillSprite;
     }
 
-    public void OnMoveDownPress() //©π§U
+    public void OnMoveDownPress() //ÂæÄ‰∏ã
     {
         Debug.Log("down");
         ly = -0.5f;
@@ -251,7 +346,7 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         //actionImage.sprite = stillSprite;
     }
 
-    public void OnTurnLeftPress() //•™±€¬‡
+    public void OnTurnLeftPress() //Â∑¶ÊóãËΩâ
     {
         Debug.Log("turn left");
         lx = -1f;
@@ -268,7 +363,7 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         //actionImage.sprite = stillSprite;
     }
 
-    public void OnTurnRightPress() //•k±€¬‡
+    public void OnTurnRightPress() //Âè≥ÊóãËΩâ
     {
         Debug.Log("turn right");
         lx = 1f;
@@ -285,7 +380,7 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         //actionImage.sprite = stillSprite;
     }
 
-    public void OnMoveForwardPress() //©π´e
+    public void OnMoveForwardPress() //ÂæÄÂâç
     {
         Debug.Log("forward");
         ry = 0.5f;
@@ -302,7 +397,7 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         //actionImage.sprite = stillSprite;
     }
 
-    public void OnMoveLeftPress()       //©π•™≠∏
+    public void OnMoveLeftPress()       //ÂæÄÂ∑¶È£õ
     {
         Debug.Log("move left");
         rx = -0.5f;
@@ -319,7 +414,7 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         //actionImage.sprite = stillSprite;
     }
 
-    public void OnMoveRightPress()      //©π•k≠∏
+    public void OnMoveRightPress()      //ÂæÄÂè≥È£õ
     {
         Debug.Log("move right");
         rx = 0.5f;
@@ -336,7 +431,7 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         //actionImage.sprite = stillSprite;
     }
 
-    public void OnMoveBackwardPress() //©π´·
+    public void OnMoveBackwardPress() //ÂæÄÂæå
     {
         Debug.Log("backward");
         ry = -0.5f;
@@ -351,11 +446,16 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
         //Debug.Log($"Release lx:{lx}, ly:{ly}, rx:{rx}, ry:{ry}");
         ClearAxisValues();
         //actionImage.sprite = stillSprite;
+    }*/
+
+    private void Tello_onUpdate(int cmdId)
+    {
+        //Debug.Log("Tello_onUpdate : " + Tello.state);
     }
 
     private void SetAxisValues(float lx, float ly, float rx, float ry)
     {
-        Debug.Log($"Tello: lx: {Tello.controllerState.lx}, ly: {Tello.controllerState.ly}, rx: {Tello.controllerState.rx}, ry: {Tello.controllerState.ry}");
+        //Debug.Log($"Tello: lx: {Tello.controllerState.lx}, ly: {Tello.controllerState.ly}, rx: {Tello.controllerState.rx}, ry: {Tello.controllerState.ry}");
         Tello.controllerState.setAxis(lx, ly, rx, ry);
         //positionTracker.UpdatePosition(lx, ly, rx, ry);
     }
@@ -394,7 +494,7 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
 
     //public void UpdateSlateTexture(Texture2D texture)
     //{
-    //    // ßÛ∑s Slate ™∫ Image ƒ›© 
+    //    // Êõ¥Êñ∞ Slate ÁöÑ Image Â±¨ÊÄß
     //    SlateImage.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
     //}
 
@@ -415,14 +515,15 @@ public class TelloController : SingletonMonoBehaviour<TelloController>
     private void Tello_onVideoData(byte[] data)
     {
         // Debug.Log("Tello_onVideoData: " + data.Length);
-        // ±Nºvπ≥∏ÍÆ∆∂«ªºµπ TelloVideoTexture •HßÛ∑sºvπ≥
+        // Â∞áÂΩ±ÂÉèË≥áÊñôÂÇ≥ÈÅûÁµ¶ TelloVideoTexture ‰ª•Êõ¥Êñ∞ÂΩ±ÂÉè
         if (telloVideoTexture != null)
         {
             telloVideoTexture.PutVideoData(data);
 
-            //if (telloVideoInstance != null)
+            // Â∞á Tello ÁöÑË¶ñÈ†ªË≥áÊñôÊáâÁî®Âà∞ TelloRawImage
+            //if (TelloRawImage != null && telloVideoTexture.VideoTexture != null)
             //{
-            //    telloVideoInstance.GetComponent<RawImage>().texture = telloVideoTexture.VideoTexture;
+            //    TelloRawImage.texture = telloVideoTexture.VideoTexture;
             //}
         }
 
